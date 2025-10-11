@@ -3,6 +3,7 @@ from birdnetlib.batch import DirectoryAnalyzer
 from birdnetlib.analyzer import Analyzer
 from datetime import datetime
 from pprint import pprint
+import os
 import math
 
 
@@ -50,18 +51,76 @@ analyzer = Analyzer(custom_species_list_path=custom_list_path)
 #later we will figure out how to get the actual amplitude (I have a way using my own analysis, but it doesn't use birdnet)
 
 #you will need to call the following code multiple times of course for each day directory in each sensor directory.
-directory = "./ShelburneSubset/Sensor2/20250506"
+# Step 2: Process all directories and calculate sum amplitudes
+base_directory = "./ShelburneSubset"
 
-batch = DirectoryAnalyzer(
-    directory,
-    analyzers=[analyzer], #use the analyzer with custom list path
-    #lon=-120.7463, 
-    #lat=35.4244,+1
-    #date=datetime(year=2022, month=5, day=10),
-    min_conf=0.1 #minimum confidence. Keep this pretty low
+# Dictionary to store results: {sensor: {date: sum_amplitude}}
+results = {}
+
+print("\n=== Processing All Sensor-Day Combinations ===\n")
+
+# Get all sensor directories
+sensor_dirs = [d for d in os.listdir(base_directory) 
+               if os.path.isdir(os.path.join(base_directory, d)) and d.startswith("Sensor")]
+
+# Loop through each sensor
+for sensor in sorted(sensor_dirs):
+    sensor_path = os.path.join(base_directory, sensor)
     
-)
+    # Initialize dictionary for this sensor
+    results[sensor] = {}
+    
+    # Get all date directories in this sensor
+    date_dirs = [d for d in os.listdir(sensor_path) 
+                 if os.path.isdir(os.path.join(sensor_path, d))]
+    
+    # Loop through each date
+    for date in sorted(date_dirs):
+        directory = os.path.join(sensor_path, date)
+        
+        print(f"Processing: {sensor}/{date}")
+        
+        # List to store all detections for this day
+        day_detections = []
+        
+        # Define a custom callback to collect detections
+        def on_analyze_complete_custom(recording):
+            # Add all detections from this recording to our list
+            day_detections.extend(recording.detections)
+        
+        # Create the batch analyzer for this directory
+        batch = DirectoryAnalyzer(
+            directory,
+            analyzers=[analyzer],
+            min_conf=0.1
+        )
+        
+        # Set the callback
+        batch.on_analyze_complete = on_analyze_complete_custom
+        batch.on_error = on_error
+        
+        # Process all files in this directory
+        batch.process()
+        
+        # Calculate sum amplitude after processing all files
+        day_sum_amplitude = 0.0
+        for detection in day_detections:
+            amplitude = 1.0  # Assume amplitude = 1.0 for now
+            confidence = detection['confidence']
+            day_sum_amplitude += amplitude * confidence
+        
+        # Store the result
+        results[sensor][date] = day_sum_amplitude
+        
+        print(f"  → Sum Amplitude: {day_sum_amplitude:.2f}\n")
 
-batch.on_analyze_complete = on_analyze_complete
-batch.on_error = on_error
-batch.process()
+        # Print final results
+print("\n=== FINAL RESULTS ===")
+for sensor in sorted(results.keys()):
+    print(f"\n{sensor}:")
+    for date in sorted(results[sensor].keys()):
+        print(f"  {date}: {results[sensor][date]:.2f}")
+
+
+
+        
