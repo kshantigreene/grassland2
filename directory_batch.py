@@ -4,6 +4,7 @@ from birdnetlib.analyzer import Analyzer
 from datetime import datetime
 from pprint import pprint
 import os
+import librosa
 import math
 
 
@@ -14,10 +15,22 @@ custom_list_path = "species_list.txt"  # See example file for formatting.
 #Passerculus sandwichensis_Savannah Sparrow
 #Dolichonyx oryzivorus_Bobolink
 
+# Function to compute amplitude of extracted audio file. Removes the file after
+def compute_amplitude(detection, remove=True):
+    if os.path.exists(detection["extracted_audio_path"]):
+        samples, sampling_rate = librosa.load(detection["extracted_audio_path"], sr= None, mono=True, offset=0.0, duration = None)
+        max_amp, rms_amp, sum_amp = eval_amplitude(samples)
+        #print(f" Max Amplitude: {max_amp}, RMS Amplitude: {rms_amp}, Sum Amplitude: {sum_amp}")
+        #remove the file
+        if remove:
+            os.remove(detection["extracted_audio_path"])
+        return rms_amp
+    return 0.0
+
 def on_analyze_complete(recording):
     print(recording.path)
     pprint(recording.detections)
-
+    
 
 def on_error(recording, error):
     print("An exception occurred: {}".format(error))
@@ -86,7 +99,11 @@ for sensor in sorted(sensor_dirs):
         # Define a custom callback to collect detections
         def on_analyze_complete_custom(recording):
             # Add all detections from this recording to our list
+            recording.extract_detections_as_audio(directory="./exports",format="wav")
+            
             day_detections.extend(recording.detections)
+            # This is where we can use librosa to grab the file and compute its amplitude
+            # Will need to delete the file after use to save space
         
         # Create the batch analyzer for this directory
         batch = DirectoryAnalyzer(
@@ -98,14 +115,15 @@ for sensor in sorted(sensor_dirs):
         # Set the callback
         batch.on_analyze_complete = on_analyze_complete_custom
         batch.on_error = on_error
-        
+        batch.extract_detections_as_audio = True
+        batch.extract_detections_directory = "./exports"
         # Process all files in this directory
         batch.process()
         
         # Calculate sum amplitude after processing all files
         day_sum_amplitude = 0.0
         for detection in day_detections:
-            amplitude = 1.0  # Assume amplitude = 1.0 for now
+            amplitude = compute_amplitude(detection)
             confidence = detection['confidence']
             day_sum_amplitude += amplitude * confidence
         
@@ -122,5 +140,3 @@ for sensor in sorted(results.keys()):
         print(f"  {date}: {results[sensor][date]:.2f}")
 
 
-
-        

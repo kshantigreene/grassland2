@@ -651,10 +651,10 @@ def build_models_from_training(spec_path=None, file_path=None,make_spectrograms=
   return model
                     
 
-def analyze_recordings(bucket_file,labels,filter="",file_path,model):
+def analyze_recordings(bucket_file,labels,file_path,model,filter="",):
   buckets=load_bucket_file(bucket_file,len(labels))
   print(buckets)
-  process_locations(model,labels,file_path),44100,44100,0.01,buckets)
+  process_locations(model,labels,file_path,44100,44100,0.01,buckets)
   save_bucket_file(bucket_file,buckets)
 
 #    model.save(model_path)
@@ -675,5 +675,5 @@ if __name__ == '__main__':
             model=tf.keras.models.load_model(model_path)
             
       filter="0601"   #to analyze only a specific date filter
-      analyze_recordings(bucket_file,labels,filter,model)
+      analyze_recordings(bucket_file,labels,file_path,model,filter)
       #C:\Users\greeneks\OneDrive - Thomas College\Documents-PC\Birds
