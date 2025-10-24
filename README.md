@@ -207,3 +207,5 @@ For questions about this analysis pipeline, please open an issue in this reposit
 ---
 
 **Note**: This is a research tool. Detection accuracy depends on recording quality, background noise, and species-specific vocalization patterns. Always validate automated detections with manual review when possible.
+
+## Authors: Kshanti Greene and James Gyampoh, Thomas College
