@@ -129,8 +129,12 @@ for sensor in sorted(sensor_dirs):
         
         # Store the result
         results[sensor][date] = day_sum_amplitude
-        
+        print(f"Processed: {sensor}/{date}")
         print(f"  → Sum Amplitude: {day_sum_amplitude:.2f}\n")
+        # store info to csv file
+        with open("results.csv", "a") as f:
+            f.write(f"{sensor},{date},{day_sum_amplitude:.2f}\n")
+            f.close()
 
         # Print final results
 print("\n=== FINAL RESULTS ===")
