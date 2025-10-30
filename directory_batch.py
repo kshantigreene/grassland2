@@ -65,7 +65,7 @@ analyzer = Analyzer(custom_species_list_path=custom_list_path)
 
 #you will need to call the following code multiple times of course for each day directory in each sensor directory.
 # Step 2: Process all directories and calculate sum amplitudes
-base_directory = "./ShelburneSubset"
+base_directory = "D:/Shelburne/May"  # Root directory containing sensor directories
 
 # Dictionary to store results: {sensor: {date: sum_amplitude}}
 results = {}
