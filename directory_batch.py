@@ -72,10 +72,12 @@ results = {}
 
 print("\n=== Processing All Sensor-Day Combinations ===\n")
 
+done = ["Sensor 1","Sensor 10","Sensor 11", "Sensor 12", "Sensor 13","Sensor 14"]
+#how do I get the next statement to ignore the values in the done list?
 # Get all sensor directories
 sensor_dirs = [d for d in os.listdir(base_directory) 
-               if os.path.isdir(os.path.join(base_directory, d)) and d.startswith("Sensor")]
-
+               if os.path.isdir(os.path.join(base_directory, d)) and (d not in done)]
+print(sensor_dirs)
 # Loop through each sensor
 for sensor in sorted(sensor_dirs):
     sensor_path = os.path.join(base_directory, sensor)
@@ -132,7 +134,7 @@ for sensor in sorted(sensor_dirs):
         print(f"Processed: {sensor}/{date}")
         print(f"  → Sum Amplitude: {day_sum_amplitude:.2f}\n")
         # store info to csv file
-        with open("results.csv", "a") as f:
+        with open("results2.csv", "a") as f:
             f.write(f"{sensor},{date},{day_sum_amplitude:.2f}\n")
             f.close()
 

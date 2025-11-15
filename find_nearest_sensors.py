@@ -90,7 +90,7 @@ def save_nest_locations(file_path, nests):
 
 def main():
     # File paths
-    sensor_file = "data/sensor_locations.csv"
+    sensor_file = "data/sensor_locations_working.csv"
     nest_file = "data/nest_locations.csv"
 
     print("Loading sensor locations...")
