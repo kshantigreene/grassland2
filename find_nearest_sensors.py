@@ -37,30 +37,47 @@ def load_nest_locations(file_path):
     return nests
 
 def find_nearest_sensors(nest_coords, sensors):
-    """Find the 3 nearest sensors to a nest location."""
-    if not nest_coords[0] or not nest_coords[1]:
-        return [], []
+    """
+    Find the 3 nearest sensors to a nest location.
 
-    distances = []
+    Returns:
+        sensor_ids (list): IDs of the 3 closest sensors
+        sensor_distances (list): distances of those 3 sensors (km)
+        all_distances (list of (sensor_id, distance)): distance from this nest to every sensor
+    """
+    if nest_coords is None:
+        return [], [], []
+
+    all_distances = []
     for sensor_id, sensor_coords in sensors.items():
         distance = geodesic(nest_coords, sensor_coords).km
-        distances.append((sensor_id, distance))
+        all_distances.append((sensor_id, distance))
 
     # Sort by distance and get top 3
-    distances.sort(key=lambda x: x[1])
-    top_3 = distances[:3]
+    all_distances.sort(key=lambda x: x[1])
+    top_3 = all_distances[:3]
 
     sensor_ids = [sensor_id for sensor_id, _ in top_3]
     sensor_distances = [distance for _, distance in top_3]
 
-    return sensor_ids, sensor_distances
+    return sensor_ids, sensor_distances, all_distances
 
 def update_nest_locations(nests, sensors):
-    """Update nest locations with nearest sensors."""
+    """Update nest locations with nearest sensors and collect all nest–sensor distances."""
+    all_nest_sensor_distances = []  # list of dicts: { 'Nest ID', 'Sensor ID', 'distance' }
+
     for nest in nests:
         if nest['lat'] and nest['lon']:
             nest_coords = (float(nest['lat']), float(nest['lon']))
-            sensor_ids, distances = find_nearest_sensors(nest_coords, sensors)
+            sensor_ids, distances, all_distances = find_nearest_sensors(nest_coords, sensors)
+
+            # Store ALL distances for this nest
+            for sensor_id, dist in all_distances:
+                all_nest_sensor_distances.append({
+                    'Nest ID': nest['Nest_id'],
+                    'Sensor ID': sensor_id,
+                    'distance': dist
+                })
 
             # Update the nest dictionary with nearest sensors
             if len(sensor_ids) >= 1:
@@ -77,7 +94,7 @@ def update_nest_locations(nests, sensors):
         else:
             print(f"\n{nest['Nest_id']} ({nest['Species_code']}): Missing coordinates")
 
-    return nests
+    return nests, all_nest_sensor_distances
 
 def save_nest_locations(file_path, nests):
     """Save updated nest locations to CSV file."""
@@ -88,10 +105,24 @@ def save_nest_locations(file_path, nests):
         writer.writeheader()
         writer.writerows(nests)
 
+def save_nest_sensor_distances(file_path, distances):
+    """Save all nest–sensor distances to CSV file."""
+    fieldnames = ['Nest ID', 'Sensor ID', 'distance']
+    with open(file_path, 'w', newline='', encoding='utf-8-sig') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in distances:
+            writer.writerow({
+                'Nest ID': row['Nest ID'],
+                'Sensor ID': row['Sensor ID'],
+                'distance': row['distance']  # raw float; you can round if you want
+            })
+
 def main():
     # File paths
     sensor_file = "data/sensor_locations.csv"
     nest_file = "data/nest_locations.csv"
+    distance_file = "data/nest_sensor_distances.csv"
 
     print("Loading sensor locations...")
     sensors = load_sensor_locations(sensor_file)
@@ -105,12 +136,16 @@ def main():
     print("Finding nearest sensors for each nest...")
     print("="*60)
 
-    updated_nests = update_nest_locations(nests, sensors)
+    updated_nests, all_distances = update_nest_locations(nests, sensors)
 
     print("\n" + "="*60)
     print("Saving updated nest locations...")
     save_nest_locations(nest_file, updated_nests)
     print(f"Updated {nest_file} with nearest sensor information")
+
+    print("\nSaving all nest–sensor distances...")
+    save_nest_sensor_distances(distance_file, all_distances)
+    print(f"Saved all nest–sensor distances to {distance_file}")
     print("="*60)
 
 if __name__ == "__main__":
