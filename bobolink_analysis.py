@@ -659,21 +659,25 @@ def analyze_recordings(bucket_file,labels,file_path,model,filter="",):
 
 #    model.save(model_path)
 
+def train():
+  #You will need to update these dirs, of course. 
+  path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland")
+  spec_path= os.path.join(path,os.sep,"Training","Spectrograms") #this dir will hold the spectrograms of the birdsongs
+  file_path= os.path.join(path,os.sep,"Training","Audio") #this dir whatever it is should contain the audio of birdsongs
+  model_path=os.path.join(path,"Models","latest_model","todaysdate") #replace todaysdate
+  model=build_models_from_training(spec_path,file_path,True)
+  model.save(model_path)
+
+def analyze():
+  path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland")
+  bucket_file= os.path.join(path,os.sep,"Analysis","Richardson Analysis","bird_buckets_6_1.csv")
+  data_path=os.path.join(path,os.sep,"Data","Recordings","Richardson 2024")
+  labels=["bobof_whine","bobom","misc"]
+  model_path=os.path.join(path,"Models","latest_model")
+  model=tf.keras.models.load_model(model_path)
+        
+  filter="0601"   #to analyze only a specific date filter
+  analyze_recordings(bucket_file,labels,data_path,model,filter)
+
 if __name__ == '__main__':
-      path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland")
-      spec_path= os.path.join(path,os.sep,"Data","Training","Spectrograms")
-      file_path= os.path.join(path,os.sep,"Data","Training","Audio")
-      bucket_file= os.path.join(path,os.sep,"Analysis","Richardson Analysis","bird_buckets_6_1.csv")
-      data_path=os.path.join(path,os.sep,"Data","Recordings","Richardson 2024")
-      labels=["bobof_whine","bobom","misc"]
-      model_path=os.path.join(path,"Models","latest_model")
-      build_model=True
-      if build_model:
-            model=build_models_from_training(spec_path,file_path,True)
-            model.save(model_path)
-      else:
-            model=tf.keras.models.load_model(model_path)
-            
-      filter="0601"   #to analyze only a specific date filter
-      analyze_recordings(bucket_file,labels,file_path,model,filter)
-      #C:\Users\greeneks\OneDrive - Thomas College\Documents-PC\Birds
+  train()
