@@ -7,8 +7,7 @@ from birdnetlib.analyzer import Analyzer
 from pprint import pprint
 custom_list_path = "species_list.txt"  # See example file for formatting.
 #change your path of course. I will zip up some audio files.
-data_path = "D:/Shelburne/May/Sensor 5/20250505"
-data_path = "./ShelburneSubset/Sensor 1/20250505"
+data_path = "./test_audio/shelb_female_may_30_sensor_8.wav"
 
 
 def on_analyze_complete(recording: Recording):
@@ -39,7 +38,7 @@ analyzer = Analyzer(custom_species_list_path=custom_list_path)
 # batch.process()
 recording = Recording(
     analyzer,
-    "./test_audio/test3.wav",
+    data_path,
     min_conf=0.2,
 
     date=datetime(year=2025, month=10, day=30),

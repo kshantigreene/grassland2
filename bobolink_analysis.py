@@ -13,6 +13,7 @@ from skimage.util import img_as_ubyte
 import os
 import tensorflow as tf
 import keras.layers
+
 segment_length=44100
 shift=44100
 sampling_rate=44100
@@ -150,8 +151,8 @@ def process_training_dir_audio(path,specpath,label,labels,sampling_rate,segment_
       if  ".wav" in file_path:
         
         if useLabel:
-          labels.append(label);
-          useLabel=False;
+          labels.append(label)
+          useLabel=False
 
           print("label "+str(label))
           #rand=1.0 #always put first of each class to test
@@ -293,13 +294,14 @@ def spec_from_file(spec_file_path):
   spec = np.load(spec_file_path)
   return spec
 
+
+
 def process_training_dir_spectrograms(path,label,labels):
   print(label)
   images=[] #np.empty((0,161,149))
   test_images=[] #np.empty((0,161,149))
   classes=[]
   test_classes=[]
-  display=False
   dirs = os.listdir(path)
   useLabel=True
   dirCount=0
@@ -309,8 +311,8 @@ def process_training_dir_spectrograms(path,label,labels):
     if os.path.isfile(file_path):
       if  ".npy" in file_path:
         if useLabel:
-          labels.append(label);
-          useLabel=False;
+          labels.append(label)
+          useLabel=False
           print("label "+str(label))
           #rand=1.0 #always put first of each class to test
         classIndex=int(len(labels)-1)
@@ -387,7 +389,7 @@ def create_normal_model(images, classes, test_images,test_classes, labels,debug=
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                 metrics=['accuracy'])
 
-  model.fit(normalized_images, classes, epochs=10)
+  model.fit(normalized_images, classes, epochs=9)
 
 
   if len(test_images > 0):
@@ -406,9 +408,14 @@ def create_cnn_model(images, classes, test_images,test_classes, labels,debug=Fal
         print(images.shape)
         print(test_images.shape)
         print(str(len(classes))+","+str(len(test_classes)))
+  norm_layer = keras.layers.Normalization(axis=-1)
+  images = images[..., np.newaxis]
+  norm_layer.adapt(images) 
   model=tf.keras.Sequential(
       [
+        
           tf.keras.Input(shape=(161,99,1)),
+          norm_layer,
           tf.keras.layers.Conv2D(32,(3,3), activation='relu'),
           tf.keras.layers.MaxPooling2D(pool_size=(2,2)),
           tf.keras.layers.Conv2D(64,(3,3), activation='relu'),
@@ -423,24 +430,14 @@ def create_cnn_model(images, classes, test_images,test_classes, labels,debug=Fal
   )
 
   print(model.summary())
-  # model=tf.keras.Sequential()
-  # model.add(layers.Conv2D(161, (3, 3), activation='relu', input_shape=images[0].shape))
-  # model.add(layers.MaxPooling2D((2, 2)))
-  # model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-  # model.add(layers.MaxPooling2D((2, 2)))
-  # model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-  # model.add(layers.Flatten())
-  # model.add(layers.Dense(64, activation='relu'))
-  # model.add(layers.Dense(len(labels)))
-
   model.compile(optimizer='adam',
                 loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                 metrics=['accuracy'])
 
   if len(test_images > 0):
-      history = model.fit(images, classes, epochs=5, validation_data=(test_images, test_classes))
+      history = model.fit(images, classes, epochs=10, validation_data=(test_images, test_classes))
   else:
-      history = model.fit(images, classes, epochs=5)
+      history = model.fit(images, classes, epochs=10)
 
   plt.plot(history.history['accuracy'], label='accuracy')
   plt.plot(history.history['val_accuracy'], label = 'val_accuracy')
@@ -519,86 +516,95 @@ def load_images_from_audio():
   (images)=process_dir_audio(file_path,spec_path,"",labels,sampling_rate,segment_length)
   return images
 
-def process_locations(model,classLabels,path,sampling_rate,segment_length,minAmp,buckets={}):
+def process_locations(model,classLabels,path,sampling_rate,segment_length,minAmp,buckets={},filter=""):
   dirs = os.listdir(path)
   currLoc=0
-  #two layers of dirs
+  #three layers of dirs
+  filters = ["Sensor 4","Sensor 9","Sensor 12"]
   for entry in dirs:
-    currLoc=currLoc+1
-    loc_path=os.path.join(path, entry)
-    if os.path.isdir(loc_path):
-      if not entry in buckets:
-        #no bucket set for this location yet
-        buckets[entry]=[0 for i in range(len(classLabels))] 
-      loc_bucket=buckets[entry]
-      #print("processing "+loc_path)
-      files=os.listdir(loc_path)
-      for file in files:
-        process_location_file(model,os.path.join(loc_path,file),buckets[entry],sampling_rate,segment_length,segment_length,minAmp)
+    print(entry)
+    if entry not in filters:
+      #sensor directory
+      currLoc=currLoc+1
+      loc_path=os.path.join(path,entry)
+      print("processing "+loc_path)
+      if os.path.isdir(loc_path):
+        if entry not in buckets:
+          #no bucket set for this location yet
+          buckets[entry]=[0 for i in range(len(classLabels))] 
+        #loc_bucket=buckets[entry]
+        
+        dirs=os.listdir(loc_path)
+        for dir in dirs:
+          loc_dir = os.path.join(loc_path,dir)
+          print("processing ",loc_dir)
+          if os.path.isdir(loc_dir):
+            #date directory
+            dirs2=os.listdir(loc_dir)
+            for file in dirs2:
+              if  (".wav" in file or ".WAV" in file) and filter in file:
+                process_location_file(model,os.path.join(loc_dir,file),entry+"_"+dir,buckets[entry],sampling_rate,segment_length,segment_length,minAmp)
   for b in buckets:
     bucket=buckets[b]
     for i in range(len(bucket)):
       print("class "+str(i)+" total: "+str(round(bucket[i],2)))
     
-def process_location_file(model,path,buckets,sampling_rate=44100,segment_length=44100,shift=44100,minAmp=0.01):
+def process_location_file(model,path,dir,buckets,sampling_rate=44100,segment_length=44100,shift=44100,minAmp=0.01):
   #process a file from a location and add the amplitude to the bucket for each identified class
-  display=False
-  images=[] #np.empty((0,161,149))
   
-  classes=[]
+  images=np.empty((0,161,99))
   amps=[]
   divisor=0.01
-  save_path=os.path.join("D:",os.sep,"Grassland","Data","Classified","class_")
-  if  (".wav" in path or ".WAV" in path) and filter in path:
-    print("processing "+path)
-    sounds=splice_sound_file(path,segment_length,shift)
-    count=0
-    for sound in sounds:
-      count = count+1
-      (maxAmp,avgAmp,sumAmp)=eval_amplitude(sound)
-      if display:
-        print("Sum amp: "+str(sumAmp)+" avg Amp: "+str(avgAmp))
-      if maxAmp >= minAmp:
-        #Only use if file reaches minimum amplitude
-        spec=spectrogram(sound,sampling_rate)
-        images.append(spec)
-        amps.append(sumAmp)
-        # if(display):
-        #   plt.imshow(spec)
-        #   plt.xlabel(path+" Time frame windows")
-        #   plt.ylabel("Frequency")
-        #   plt.show()
-        #now find class of image
-    if len(images) >0:
-      images=np.stack(images)
-      #normalize first
-      layer = keras.layers.Normalization()
-      layer.adapt(images) 
-      normalized_images = layer(images)
-      
-      print("about to make predictions on "+str(len(images))+" images.")
-      (probability_model,predictions)=make_predictions(model,normalized_images)
-      numImages=len(normalized_images)
+  save_path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland","Data","Classified","class_")
+  
+  display=False
+  sounds=splice_sound_file(path,segment_length,shift)
+  print("processing "+path +" num sounds: "+str(len(sounds)))
+  count=0
+  for sound in sounds:
+    count = count+1
+    (maxAmp,avgAmp,sumAmp)=eval_amplitude(sound)
+    #if display:
+    #print("Sum amp: "+str(sumAmp)+" avg Amp: "+str(avgAmp))
+    if maxAmp >= minAmp:
+      #Only use if file reaches minimum amplitude
+      spec=spectrogram(sound,sampling_rate)
+      #print("spec shape ",spec.shape)
+      images=np.append(images,[spec], axis=0)
+      #print("images shape",images.shape)
+      amps.append(sumAmp)
+      # if(display):
+      #   plt.imshow(spec)
+      #   plt.xlabel(path+" Time frame windows")
+      #   plt.ylabel("Frequency")
+      #   plt.show()
+      #now find class of image
+  if images.shape[0] >0:
+    images=np.stack(images)
+    
+    print("about to make predictions on "+str(len(images))+" images.")
+    (probability_model,predictions)=make_predictions(model,images)
+    numImages=len(images)
+    display2=False
+    for i in range(numImages):
       display2=False
-      for i in range(numImages):
-        display2=False
-        #print(str(i)+" of "+str(numImages))
-        predict=predictions[i]
-        amp=amps[i]
-        cls=np.argmax(predict)
-        print("most likely class: "+str(cls) + " "+str(amp))
-        if cls==0:
-          display2=True
-        if display or display2:
-          plt.imshow(images[i])
-          plt.show() 
-          spec_to_file(images[i],save_path+str(cls)+"_"+str(i))
-        for c in range(len(predict)):
-          #add the probabilistic amplitude to bucket (amp * probability of class c)
-          buckets[c]+=amp*predict[c]*divisor
-          if (display or display2):
-            #print("predicted class: "+str(c))
-            print("class: "+str(c)+" likelihood: "+str(round(predict[c],3))+" total value: "+str(round(amp*predict[c])))
+      #print(str(i)+" of "+str(numImages))
+      predict=predictions[i]
+      amp=amps[i]
+      cls=np.argmax(predict)
+      #print("most likely class: "+str(cls) + " "+str(amp))
+      if cls==0:
+        display2=True #testing
+      if display or display2:
+        #plt.imshow(images[i])
+        #plt.show() 
+        spec_to_file(images[i],save_path+dir+"_"+str(count)+"_"+str(cls)+"_"+str(i))
+      for c in range(len(predict)):
+        #add the probabilistic amplitude to bucket (amp * probability of class c)
+        buckets[c]+=amp*predict[c]*divisor
+        #if (display or display2):
+          #print("predicted class: "+str(c))
+          #print("class: "+str(c)+" likelihood: "+str(round(predict[c],3))+" total value: "+str(round(amp*predict[c])))
 
   #process location sound files with a saved model
 
@@ -637,7 +643,7 @@ def save_bucket_file(file_path,buckets):
 #otherwise load training from image files
 def build_models_from_training(spec_path=None, file_path=None,make_spectrograms=False):
   if make_spectrograms: 
-      
+      labels=["bobof_whine","bobom","misc"]
       print(file_path)
       (images,classes,test_images,test_classes)=process_training_dir_audio(file_path,spec_path,"Birdsongs",labels,sampling_rate,segment_length,shift)
   else: #audio has already been saved to spectrograms
@@ -654,30 +660,34 @@ def build_models_from_training(spec_path=None, file_path=None,make_spectrograms=
 def analyze_recordings(bucket_file,labels,file_path,model,filter="",):
   buckets=load_bucket_file(bucket_file,len(labels))
   print(buckets)
-  process_locations(model,labels,file_path,44100,44100,0.01,buckets)
+  process_locations(model,labels,file_path,44100,44100,0.01,buckets,filter)
   save_bucket_file(bucket_file,buckets)
 
 #    model.save(model_path)
 
-def train():
+def train(model_name):
   #You will need to update these dirs, of course. 
   path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland")
-  spec_path= os.path.join(path,os.sep,"Training","Spectrograms") #this dir will hold the spectrograms of the birdsongs
-  file_path= os.path.join(path,os.sep,"Training","Audio") #this dir whatever it is should contain the audio of birdsongs
-  model_path=os.path.join(path,"Models","latest_model","todaysdate") #replace todaysdate
-  model=build_models_from_training(spec_path,file_path,True)
+  spec_path= os.path.join("C:",os.sep,path,"Data","Training","Spectrograms") #this dir will hold the spectrograms of the birdsongs
+  file_path= os.path.join("C:",os.sep,path,"Data","Training","Audio") #this dir whatever it is should contain the audio of birdsongs
+  model_path=os.path.join("C:",os.sep,path,"Models",model_name) #replace todaysdate
+  print(model_path)
+  model=build_models_from_training(spec_path,file_path,False)
   model.save(model_path)
 
-def analyze():
-  path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland")
-  bucket_file= os.path.join(path,os.sep,"Analysis","Richardson Analysis","bird_buckets_6_1.csv")
-  data_path=os.path.join(path,os.sep,"Data","Recordings","Richardson 2024")
+
+#can test with the ShelburneSubset
+def analyze(model_name):
   labels=["bobof_whine","bobom","misc"]
-  model_path=os.path.join(path,"Models","latest_model")
+  path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland")
+  bucket_file= os.path.join("C:",os.sep,path,"Analysis","Shelburne_Analysis","bird_buckets_12_27.csv")
+  data_path=os.path.join("D:",os.sep,"Shelburne","May")
+  
+  model_path=os.path.join("C:",os.sep,path,"Models",model_name)
   model=tf.keras.models.load_model(model_path)
         
-  filter="0601"   #to analyze only a specific date filter
+  filter=""   #to analyze only a specific date filter
   analyze_recordings(bucket_file,labels,data_path,model,filter)
 
 if __name__ == '__main__':
-  train()
+  analyze("Shelburne_260114.keras")

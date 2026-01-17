@@ -120,7 +120,7 @@ def save_nest_sensor_distances(file_path, distances):
 
 def main():
     # File paths
-    sensor_file = "data/sensor_locations_working.csv"
+    sensor_file = "data/sensor_locations.csv"
     nest_file = "data/nest_locations.csv"
     distance_file = "data/nest_sensor_distances.csv"
 
