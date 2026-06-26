@@ -319,6 +319,7 @@ def process_training_dir_spectrograms(path,label,labels):
         testFile=False
         print("processing file: "+file_path)
         spec=spec_from_file(file_path)
+        print(spec)
         #if file_path.find("test") >=0:
         #  testFile=True
         if random() < testPercent:
@@ -520,7 +521,7 @@ def process_locations(model,classLabels,path,sampling_rate,segment_length,minAmp
   dirs = os.listdir(path)
   currLoc=0
   #three layers of dirs
-  filters = ["Sensor 4","Sensor 9","Sensor 12"]
+  filters = [] #need to rerun part of 24
   for entry in dirs:
     print(entry)
     if entry not in filters:
@@ -555,7 +556,8 @@ def process_location_file(model,path,dir,buckets,sampling_rate=44100,segment_len
   images=np.empty((0,161,99))
   amps=[]
   divisor=0.01
-  save_path=os.path.join("C:",os.sep,"Users","greeneks","OneDrive - Thomas College","Documents-PC","Birds","Grassland","Data","Classified","class_")
+  #C:\Users\greeneks\Downloads\Classified
+  save_path=os.path.join("C:",os.sep,"Users","greeneks","Downloads","Classified","class_")
   
   display=False
   sounds=splice_sound_file(path,segment_length,shift)
@@ -690,4 +692,4 @@ def analyze(model_name):
   analyze_recordings(bucket_file,labels,data_path,model,filter)
 
 if __name__ == '__main__':
-  analyze("Shelburne_260114.keras")
+  train("Shelburne_260311.keras")
